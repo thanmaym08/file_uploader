@@ -1,0 +1,741 @@
+/* ============================================================
+   QuickDrop Pro — Component Styles
+   Styles for UploadPage, DownloadPage, and all sub-components
+   ============================================================ */
+
+/* ─── Upload Page Layout ─── */
+.upload-page {
+  width: 100%;
+  max-width: 960px;
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: 1fr;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.upload-page.has-result {
+  grid-template-columns: 1fr 1fr;
+  max-width: 1060px;
+}
+
+@media (max-width: 768px) {
+  .upload-page.has-result {
+    grid-template-columns: 1fr;
+  }
+}
+
+.upload-panel {
+  padding: 2rem;
+}
+
+.share-panel {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+/* ─── Dropzone Area ─── */
+.dropzone-area {
+  border: 2px dashed rgba(79, 172, 254, 0.2);
+  border-radius: var(--radius-lg);
+  padding: 3rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  transition: all var(--transition-base);
+  position: relative;
+}
+
+.dropzone-area:hover,
+.dropzone-area.drag-active {
+  border-color: var(--accent-primary);
+  background: rgba(0, 242, 254, 0.03);
+  box-shadow: inset 0 0 40px rgba(0, 242, 254, 0.05);
+}
+
+.dropzone-area.drag-active {
+  border-style: solid;
+  box-shadow: inset 0 0 60px rgba(0, 242, 254, 0.08), 0 0 20px rgba(0, 242, 254, 0.1);
+}
+
+.dropzone-area.has-files {
+  min-height: 120px;
+  padding: 2rem 1rem;
+}
+
+.drop-icon {
+  font-size: 3rem;
+  margin-bottom: 0.75rem;
+  animation: float 3.5s ease-in-out infinite;
+}
+
+.drop-title {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin: 0 0 0.35rem 0;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.drop-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.drop-hint {
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  margin: 0.5rem 0 0 0;
+}
+
+/* ─── Bundle Preview Grid ─── */
+.bundle-preview {
+  margin-top: 1.25rem;
+}
+
+.bundle-preview-header {
+  margin-bottom: 0.75rem;
+}
+
+.bundle-file-count {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.bundle-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.file-card {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color var(--transition-fast);
+}
+
+.file-card:hover {
+  border-color: var(--glass-border-hover);
+}
+
+.file-card-preview {
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.file-card-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.file-card-icon {
+  font-size: 2rem;
+  opacity: 0.7;
+}
+
+.file-card-info {
+  padding: 0.5rem 0.6rem;
+}
+
+.file-card-name {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  margin-top: 0.2rem;
+}
+
+.file-card-badge {
+  background: rgba(79, 172, 254, 0.1);
+  color: var(--accent-secondary);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* ─── Options ─── */
+.options-section {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.options-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  justify-content: center;
+}
+
+.password-set-badge {
+  text-align: center;
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--accent-primary);
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--accent-secondary);
+  cursor: pointer;
+  font-size: inherit;
+  font-family: inherit;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.btn-link:hover {
+  color: var(--accent-primary);
+}
+
+/* ─── Progress Bar ─── */
+.progress-container {
+  margin-top: 1.25rem;
+  overflow: hidden;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.progress-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.progress-pct {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.progress-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  position: relative;
+}
+
+.progress-shimmer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+}
+
+.completion-burst {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 0;
+}
+
+.burst-particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+}
+
+/* ─── Upload Actions ─── */
+.upload-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  justify-content: center;
+}
+
+.upload-btn {
+  min-width: 180px;
+  font-size: 0.95rem;
+  padding: 0.8rem 1.8rem;
+}
+
+.upload-error {
+  margin-top: 1rem;
+  padding: 0.6rem 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-sm);
+  color: var(--error);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* ─── Upload Result ─── */
+.upload-result {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.result-header {
+  margin-bottom: 1.5rem;
+}
+
+.result-check {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--success-bg);
+  border: 2px solid var(--success-border);
+  color: var(--success);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0 auto 1rem;
+}
+
+.result-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem 0;
+}
+
+.result-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.new-upload-btn {
+  margin-top: 1rem;
+}
+
+/* ─── QR Share ─── */
+.qr-share {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.qr-code-wrap {
+  background: #ffffff;
+  padding: 0.85rem;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+  transition: transform var(--transition-base);
+}
+
+.qr-code-wrap:hover {
+  transform: scale(1.04);
+}
+
+.qr-instruction {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.share-url-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.5rem 0.4rem 0.8rem;
+  width: 100%;
+  overflow: hidden;
+}
+
+.share-url-text {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: all;
+}
+
+.share-copy-btn {
+  flex-shrink: 0;
+  font-size: 0.75rem !important;
+  padding: 0.35rem 0.6rem !important;
+}
+
+.share-native-btn {
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+/* ─── WebSocket Status ─── */
+.ws-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.ws-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  transition: background var(--transition-base);
+}
+
+.ws-dot.connected {
+  background: var(--success);
+  animation: pulseGlow 2s infinite;
+}
+
+/* ─── Pulse Indicator ─── */
+.pulse-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pulse-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+}
+
+.pulse-ring {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pulse-icon {
+  font-size: 1rem;
+}
+
+.pulse-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.pulse-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.pulse-filename {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.pulse-counter {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--success);
+  justify-content: center;
+}
+
+.counter-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+/* ─── Password Modal ─── */
+.password-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 8, 12, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+}
+
+.password-modal {
+  max-width: 380px;
+  width: 100%;
+  padding: 2rem;
+  text-align: center;
+}
+
+.password-modal-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.password-modal-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+}
+
+.password-modal-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0 0 1.25rem 0;
+  line-height: 1.5;
+}
+
+.password-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.password-input-wrap {
+  position: relative;
+}
+
+.password-input {
+  padding-right: 3rem;
+}
+
+.password-toggle-vis {
+  position: absolute;
+  right: 0.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.2rem;
+  line-height: 1;
+}
+
+.password-error {
+  font-size: 0.8rem;
+  color: var(--error);
+  text-align: left;
+}
+
+.password-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 0.25rem;
+}
+
+/* ─── Download Page ─── */
+.download-page {
+  width: 100%;
+  max-width: 560px;
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.download-panel {
+  padding: 2rem;
+}
+
+.download-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem 0;
+  color: var(--text-secondary);
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--glass-border);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+}
+
+.download-error {
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.error-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.download-error h2 {
+  font-family: var(--font-display);
+  margin: 0 0 0.5rem 0;
+}
+
+.download-error p {
+  color: var(--text-secondary);
+  margin: 0 0 1.5rem 0;
+}
+
+.download-header {
+  margin-bottom: 1.5rem;
+}
+
+.download-title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem 0;
+}
+
+.download-meta {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.burn-badge {
+  font-size: 0.7rem;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--error);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.download-all-btn {
+  width: 100%;
+  margin-bottom: 1.25rem;
+  font-size: 0.95rem;
+  padding: 0.85rem;
+}
+
+.download-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.download-file-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  transition: border-color var(--transition-fast);
+}
+
+.download-file-card:hover {
+  border-color: var(--glass-border-hover);
+}
+
+.dfc-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.dfc-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.dfc-name {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dfc-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-top: 0.15rem;
+}
+
+.dfc-type-badge {
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.dfc-download-btn {
+  flex-shrink: 0;
+  font-size: 0.8rem !important;
+  padding: 0.45rem 0.8rem !important;
+}
+
+.download-footer-note {
+  margin-top: 1.25rem;
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  text-align: center;
+  line-height: 1.5;
+}
