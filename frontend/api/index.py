@@ -1,7 +1,7 @@
 """
 QuickDrop Pro — Backend API
 FastAPI + MongoDB Atlas + GridFS
-Lossless HD file sharing with bundle support, WebSocket pulse, and 24h TTL.
+Lossless HD file sharing with bundle support, HTTP Polling pulse, and 24h TTL.
 """
 
 import os
@@ -14,8 +14,7 @@ from typing import Optional, List, Dict
 
 from fastapi import (
     FastAPI, UploadFile, File, Form, Query,
-    HTTPException, WebSocket, WebSocketDisconnect,
-    BackgroundTasks,
+    HTTPException, BackgroundTasks,
 )
 from fastapi.responses import StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -75,41 +74,18 @@ async def shutdown_db():
 
 
 # ──────────────────────────────────────────────
-# WebSocket — Live Download Pulse
+# HTTP Polling Event Pusher
 # ──────────────────────────────────────────────
-class PulseManager:
-    """Manages WebSocket connections per bundle for real-time download notifications."""
-
-    def __init__(self):
-        self._conns: Dict[str, List[WebSocket]] = {}
-
-    async def connect(self, ws: WebSocket, bundle_id: str):
-        await ws.accept()
-        self._conns.setdefault(bundle_id, []).append(ws)
-
-    def disconnect(self, ws: WebSocket, bundle_id: str):
-        if bundle_id in self._conns:
-            self._conns[bundle_id] = [
-                c for c in self._conns[bundle_id] if c is not ws
-            ]
-            if not self._conns[bundle_id]:
-                del self._conns[bundle_id]
-
-    async def pulse(self, bundle_id: str, event: dict):
-        """Send a pulse event to all listeners on a bundle."""
-        if bundle_id not in self._conns:
-            return
-        dead = []
-        for ws in self._conns[bundle_id]:
-            try:
-                await ws.send_json(event)
-            except Exception:
-                dead.append(ws)
-        for ws in dead:
-            self.disconnect(ws, bundle_id)
-
-
-pulse_mgr = PulseManager()
+async def push_event(bundle_id: str, event: dict):
+    """Save an event to the bundle document for polling clients."""
+    if bundles_col is None: return
+    try:
+        await bundles_col.update_one(
+            {"_id": bundle_id},
+            {"$push": {"events": event}}
+        )
+    except Exception:
+        pass
 
 
 # ──────────────────────────────────────────────
@@ -130,9 +106,9 @@ def _now():
 
 
 # ──────────────────────────────────────────────
-# POST /drop/upload — Bundle Upload (multi-file)
+# POST /api/drop/upload — Bundle Upload (multi-file)
 # ──────────────────────────────────────────────
-@app.post("/drop/upload")
+@app.post("/api/drop/upload")
 async def upload_files(
     files: List[UploadFile] = File(...),
     password: Optional[str] = Form(None),
@@ -141,14 +117,12 @@ async def upload_files(
     """
     Upload one or more files as a single bundle.
     Returns a bundle_id accessible via one QR code / link.
-    Files are stored bit-for-bit in GridFS (lossless HD pipeline).
     """
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
 
     bundle_id = str(uuid.uuid4())
 
-    # Optional password hashing
     pwd_hash = ""
     if password:
         pwd_hash = bcrypt.hashpw(
@@ -159,15 +133,12 @@ async def upload_files(
     total_bytes = 0
 
     for f in files:
-        # Read raw bytes — zero processing, zero compression
         raw = await f.read()
         size = len(raw)
         total_bytes += size
 
-        # SHA-256 checksum for lossless integrity verification
         sha256 = hashlib.sha256(raw).hexdigest()
 
-        # Store in GridFS (raw binary, application/octet-stream to bypass any codec)
         grid_id = await fs_bucket.upload_from_stream(
             f.filename,
             BytesIO(raw),
@@ -186,7 +157,6 @@ async def upload_files(
             "sha256": sha256,
         })
 
-    # Bundle document in MongoDB
     bundle_doc = {
         "_id": bundle_id,
         "files": file_records,
@@ -195,6 +165,7 @@ async def upload_files(
         "download_count": 0,
         "total_bytes": total_bytes,
         "created_at": _now(),
+        "events": [],  # Store pulse events for polling here
     }
     await bundles_col.insert_one(bundle_doc)
 
@@ -211,17 +182,17 @@ async def upload_files(
 
 
 # ──────────────────────────────────────────────
-# GET /drop/bundle/{bundle_id} — Bundle Metadata
+# GET /api/drop/bundle/{bundle_id} — Bundle Metadata
 # ──────────────────────────────────────────────
-@app.get("/drop/bundle/{bundle_id}")
+@app.get("/api/drop/bundle/{bundle_id}")
 async def get_bundle_info(bundle_id: str):
-    """Return metadata for a bundle (file list, sizes, protection status)."""
+    """Return metadata for a bundle."""
     bundle = await bundles_col.find_one({"_id": bundle_id})
     if not bundle:
         raise HTTPException(status_code=404, detail="Bundle not found or expired")
 
-    # Send scan pulse to uploader
-    await pulse_mgr.pulse(bundle_id, {
+    # Send scan pulse
+    await push_event(bundle_id, {
         "event": "pulse",
         "type": "scan",
         "timestamp": _now().isoformat(),
@@ -248,11 +219,11 @@ async def get_bundle_info(bundle_id: str):
 
 
 # ──────────────────────────────────────────────
-# POST /drop/verify-password/{bundle_id}
+# POST /api/drop/verify-password/{bundle_id}
 # ──────────────────────────────────────────────
-@app.post("/drop/verify-password/{bundle_id}")
+@app.post("/api/drop/verify-password/{bundle_id}")
 async def verify_bundle_password(bundle_id: str, password: str = Form(...)):
-    """Verify password for a protected bundle. Returns 200 if correct."""
+    """Verify password for a protected bundle."""
     bundle = await bundles_col.find_one({"_id": bundle_id})
     if not bundle:
         raise HTTPException(status_code=404, detail="Bundle not found or expired")
@@ -267,20 +238,16 @@ async def verify_bundle_password(bundle_id: str, password: str = Form(...)):
 
 
 # ──────────────────────────────────────────────
-# GET /drop/download/{bundle_id}/{file_index}
-#   — Download Individual File (Lossless HD)
+# GET /api/drop/download/{bundle_id}/{file_index}
 # ──────────────────────────────────────────────
-@app.get("/drop/download/{bundle_id}/{file_index}")
+@app.get("/api/drop/download/{bundle_id}/{file_index}")
 async def download_file(
     bundle_id: str,
     file_index: int,
     password: Optional[str] = Query(None),
     background_tasks: BackgroundTasks = None,
 ):
-    """
-    Download a single file from a bundle.
-    Serves raw, uncompressed bytes with SHA-256 checksum header.
-    """
+    """Download a single file from a bundle."""
     bundle = await bundles_col.find_one({"_id": bundle_id})
     if not bundle:
         raise HTTPException(status_code=404, detail="Bundle not found or expired")
@@ -302,7 +269,7 @@ async def download_file(
     grid_id = ObjectId(file_meta["grid_id"])
 
     # Pulse: download started
-    await pulse_mgr.pulse(bundle_id, {
+    await push_event(bundle_id, {
         "event": "pulse",
         "type": "download_start",
         "file_index": file_index,
@@ -310,12 +277,12 @@ async def download_file(
         "timestamp": _now().isoformat(),
     })
 
-    # Stream from GridFS — raw bytes, no re-encoding
+    # Stream from GridFS
     grid_out = await fs_bucket.open_download_stream(grid_id)
     content = await grid_out.read()
 
     # Pulse: download complete
-    await pulse_mgr.pulse(bundle_id, {
+    await push_event(bundle_id, {
         "event": "pulse",
         "type": "download_complete",
         "file_index": file_index,
@@ -333,7 +300,6 @@ async def download_file(
     if bundle.get("burn_on_read"):
         background_tasks.add_task(_burn_bundle, bundle_id, bundle["files"])
 
-    # Lossless headers — no compression, checksum for verification
     headers = {
         "Content-Disposition": f'attachment; filename="{file_meta["filename"]}"',
         "X-Checksum-SHA256": file_meta["sha256"],
@@ -350,19 +316,15 @@ async def download_file(
 
 
 # ──────────────────────────────────────────────
-# GET /drop/download/{bundle_id}
-#   — Download All Files as ZIP (Lossless)
+# GET /api/drop/download-all/{bundle_id}
 # ──────────────────────────────────────────────
-@app.get("/drop/download-all/{bundle_id}")
+@app.get("/api/drop/download-all/{bundle_id}")
 async def download_bundle_zip(
     bundle_id: str,
     password: Optional[str] = Query(None),
     background_tasks: BackgroundTasks = None,
 ):
-    """
-    Download all files in a bundle as a ZIP archive.
-    Uses ZIP_STORED (no compression) to maintain lossless integrity.
-    """
+    """Download all files in a bundle as a ZIP archive."""
     bundle = await bundles_col.find_one({"_id": bundle_id})
     if not bundle:
         raise HTTPException(status_code=404, detail="Bundle not found or expired")
@@ -378,7 +340,7 @@ async def download_bundle_zip(
             raise HTTPException(status_code=403, detail="Invalid password")
 
     # Pulse: download all started
-    await pulse_mgr.pulse(bundle_id, {
+    await push_event(bundle_id, {
         "event": "pulse",
         "type": "download_all_start",
         "timestamp": _now().isoformat(),
@@ -392,7 +354,7 @@ async def download_bundle_zip(
         raw = await grid_out.read()
         file_contents.append((file_meta["filename"], raw))
 
-    # Build ZIP in memory — ZIP_STORED = no compression = lossless
+    # Build ZIP in memory
     zip_buffer = BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_STORED) as zf:
         for filename, content in file_contents:
@@ -400,7 +362,7 @@ async def download_bundle_zip(
     zip_buffer.seek(0)
 
     # Pulse: download all complete
-    await pulse_mgr.pulse(bundle_id, {
+    await push_event(bundle_id, {
         "event": "pulse",
         "type": "download_all_complete",
         "timestamp": _now().isoformat(),
@@ -427,27 +389,25 @@ async def download_bundle_zip(
 
 
 # ──────────────────────────────────────────────
-# WebSocket /ws/bundle/{bundle_id}
+# GET /api/drop/bundle/{bundle_id}/events
 # ──────────────────────────────────────────────
-@app.websocket("/ws/bundle/{bundle_id}")
-async def ws_bundle_pulse(websocket: WebSocket, bundle_id: str):
-    """
-    Uploader connects here after uploading a bundle.
-    Receives real-time pulse events when someone scans/downloads.
-    """
-    await pulse_mgr.connect(websocket, bundle_id)
-    try:
-        while True:
-            # Keep alive — client can send pings
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        pulse_mgr.disconnect(websocket, bundle_id)
+@app.get("/api/drop/bundle/{bundle_id}/events")
+async def get_bundle_events(bundle_id: str, since_idx: int = 0):
+    """Polling endpoint for pulse events."""
+    bundle = await bundles_col.find_one({"_id": bundle_id}, {"events": 1})
+    if not bundle:
+        return {"events": []}
+    
+    events = bundle.get("events", [])
+    # Return only new events
+    new_events = events[since_idx:] if since_idx < len(events) else []
+    return {"events": new_events}
 
 
 # ──────────────────────────────────────────────
 # Health Check
 # ──────────────────────────────────────────────
-@app.get("/health")
+@app.get("/api/health")
 async def health():
     try:
         await mongo_client.admin.command("ping")
@@ -455,11 +415,3 @@ async def health():
     except Exception as e:
         return {"status": "unhealthy", "mongodb": str(e)}
 
-
-# ──────────────────────────────────────────────
-# Run
-# ──────────────────────────────────────────────
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)

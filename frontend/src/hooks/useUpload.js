@@ -13,7 +13,7 @@ import axios from 'axios';
  *   bundleData — server response on success
  *   reset() — clear state for a new upload
  */
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = '/api';
 
 export default function useUpload() {
   const [progress, setProgress] = useState(0);

@@ -9,7 +9,7 @@ import PasswordGate from '../components/PasswordGate';
  * Shows bundle info, individual file downloads (HD), and "Download All" ZIP.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = '/api';
 
 function formatBytes(bytes) {
   if (!bytes) return '0 B';
