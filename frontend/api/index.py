@@ -14,7 +14,7 @@ from typing import Optional, List, Dict
 
 from fastapi import (
     FastAPI, UploadFile, File, Form, Query,
-    HTTPException, BackgroundTasks,
+    HTTPException, BackgroundTasks, Depends
 )
 from fastapi.responses import StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -53,24 +53,21 @@ db = None
 bundles_col = None
 fs_bucket: AsyncIOMotorGridFSBucket = None
 
-
-@app.on_event("startup")
-async def startup_db():
+async def init_db():
+    """
+    Lazy initialization for Vercel Serverless environment.
+    Vercel doesn't reliably trigger FastAPI startup events.
+    """
     global mongo_client, db, bundles_col, fs_bucket
-    mongo_client = AsyncIOMotorClient(MONGO_URI, tlsCAFile=certifi.where())
-    db = mongo_client.quickdrop
-    bundles_col = db.bundles
-    fs_bucket = AsyncIOMotorGridFSBucket(db)
-
-    # TTL index — auto-delete bundle docs 24 hours after creation
-    await bundles_col.create_index("created_at", expireAfterSeconds=86400)
-    print("[OK] MongoDB connected - TTL index ready")
-
-
-@app.on_event("shutdown")
-async def shutdown_db():
-    if mongo_client:
-        mongo_client.close()
+    if mongo_client is None:
+        mongo_client = AsyncIOMotorClient(MONGO_URI, tlsCAFile=certifi.where())
+        db = mongo_client.quickdrop
+        bundles_col = db.bundles
+        fs_bucket = AsyncIOMotorGridFSBucket(db)
+        try:
+            await bundles_col.create_index("created_at", expireAfterSeconds=86400)
+        except Exception:
+            pass
 
 
 # ──────────────────────────────────────────────
@@ -78,6 +75,7 @@ async def shutdown_db():
 # ──────────────────────────────────────────────
 async def push_event(bundle_id: str, event: dict):
     """Save an event to the bundle document for polling clients."""
+    await init_db()
     if bundles_col is None: return
     try:
         await bundles_col.update_one(
@@ -93,6 +91,7 @@ async def push_event(bundle_id: str, event: dict):
 # ──────────────────────────────────────────────
 async def _burn_bundle(bundle_id: str, files: list):
     """Delete all GridFS files and the bundle document."""
+    await init_db()
     for f in files:
         try:
             await fs_bucket.delete(ObjectId(f["grid_id"]))
@@ -114,10 +113,7 @@ async def upload_files(
     password: Optional[str] = Form(None),
     burn_on_read: bool = Form(False),
 ):
-    """
-    Upload one or more files as a single bundle.
-    Returns a bundle_id accessible via one QR code / link.
-    """
+    await init_db()
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
 
@@ -186,7 +182,7 @@ async def upload_files(
 # ──────────────────────────────────────────────
 @app.get("/api/drop/bundle/{bundle_id}")
 async def get_bundle_info(bundle_id: str):
-    """Return metadata for a bundle."""
+    await init_db()
     bundle = await bundles_col.find_one({"_id": bundle_id})
     if not bundle:
         raise HTTPException(status_code=404, detail="Bundle not found or expired")
@@ -223,7 +219,7 @@ async def get_bundle_info(bundle_id: str):
 # ──────────────────────────────────────────────
 @app.post("/api/drop/verify-password/{bundle_id}")
 async def verify_bundle_password(bundle_id: str, password: str = Form(...)):
-    """Verify password for a protected bundle."""
+    await init_db()
     bundle = await bundles_col.find_one({"_id": bundle_id})
     if not bundle:
         raise HTTPException(status_code=404, detail="Bundle not found or expired")
@@ -247,7 +243,7 @@ async def download_file(
     password: Optional[str] = Query(None),
     background_tasks: BackgroundTasks = None,
 ):
-    """Download a single file from a bundle."""
+    await init_db()
     bundle = await bundles_col.find_one({"_id": bundle_id})
     if not bundle:
         raise HTTPException(status_code=404, detail="Bundle not found or expired")
@@ -324,7 +320,7 @@ async def download_bundle_zip(
     password: Optional[str] = Query(None),
     background_tasks: BackgroundTasks = None,
 ):
-    """Download all files in a bundle as a ZIP archive."""
+    await init_db()
     bundle = await bundles_col.find_one({"_id": bundle_id})
     if not bundle:
         raise HTTPException(status_code=404, detail="Bundle not found or expired")
@@ -393,7 +389,7 @@ async def download_bundle_zip(
 # ──────────────────────────────────────────────
 @app.get("/api/drop/bundle/{bundle_id}/events")
 async def get_bundle_events(bundle_id: str, since_idx: int = 0):
-    """Polling endpoint for pulse events."""
+    await init_db()
     bundle = await bundles_col.find_one({"_id": bundle_id}, {"events": 1})
     if not bundle:
         return {"events": []}
@@ -409,9 +405,9 @@ async def get_bundle_events(bundle_id: str, since_idx: int = 0):
 # ──────────────────────────────────────────────
 @app.get("/api/health")
 async def health():
+    await init_db()
     try:
         await mongo_client.admin.command("ping")
         return {"status": "healthy", "mongodb": "connected"}
     except Exception as e:
         return {"status": "unhealthy", "mongodb": str(e)}
-
