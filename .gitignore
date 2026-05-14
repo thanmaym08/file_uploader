@@ -8,6 +8,7 @@ build/
 # Environment files (contain secrets)
 .env
 .env.local
+.env.production
 
 # Python
 __pycache__/
